@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "odoo": {
+      "command": "python",
+      "args": ["odoo_mcp_server/main.py"],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  }
+}
