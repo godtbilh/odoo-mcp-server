@@ -1,7 +1,6 @@
 import os
 import asyncio
 import xmlrpc.client
-import requests
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from mcp.server.models import InitializationOptions
@@ -15,7 +14,6 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Odoo configuration
 ODOO_URL = os.getenv("ODOO_URL")
-ODOO_API_KEY = os.getenv("ODOO_API_KEY")
 ODOO_DB = os.getenv("ODOO_DB")
 ODOO_USERNAME = os.getenv("ODOO_USERNAME", "admin")
 ODOO_PASSWORD = os.getenv("ODOO_PASSWORD")
@@ -25,7 +23,6 @@ class OdooMCPServer:
         self.server = Server("odoo-mcp-server")
         self.odoo_url = ODOO_URL
         self.odoo_db = ODOO_DB
-        self.odoo_api_key = ODOO_API_KEY
         
         # Setup MCP server handlers
         self.setup_handlers()
@@ -220,27 +217,19 @@ class OdooMCPServer:
             common = xmlrpc.client.ServerProxy(f'{self.odoo_url}/xmlrpc/2/common')
             version = common.version()
             
-            # Authenticate - try API key first, then password
-            uid = None
-            auth_credential = None
+            # Authenticate with password
+            if not ODOO_PASSWORD:
+                raise Exception("ODOO_PASSWORD is required for authentication")
             
-            if self.odoo_api_key:
-                uid = common.authenticate(self.odoo_db, ODOO_USERNAME, self.odoo_api_key, {})
-                if uid:
-                    auth_credential = self.odoo_api_key
-            
-            if not uid and ODOO_PASSWORD:
-                uid = common.authenticate(self.odoo_db, ODOO_USERNAME, ODOO_PASSWORD, {})
-                if uid:
-                    auth_credential = ODOO_PASSWORD
+            uid = common.authenticate(self.odoo_db, ODOO_USERNAME, ODOO_PASSWORD, {})
             
             if not uid:
-                raise Exception("Authentication failed with both API key and password")
+                raise Exception("Authentication failed - check your credentials")
             
             # Get models proxy
             models = xmlrpc.client.ServerProxy(f'{self.odoo_url}/xmlrpc/2/object')
             
-            return models, uid, auth_credential
+            return models, uid, ODOO_PASSWORD
         except Exception as e:
             raise Exception(f"Failed to connect to Odoo: {str(e)}")
 
